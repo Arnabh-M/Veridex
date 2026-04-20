@@ -1,0 +1,18 @@
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Backend
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+*.pyc
+
+# Data uploads (keep folder)
+data/uploads/*
+!data/uploads/.gitkeep
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
