@@ -225,8 +225,8 @@ def analyze_image(image_path: str) -> Dict[str, Any]:
         result = "FAKE" if combined_score > 0.52 else "REAL"
 
         return {
-            "result": result,
-            "confidence": round(combined_score * 100.0, 1),
+            "prediction": result,  # ✅ renamed
+            "confidence": combined_score,  # ✅ keep 0–1 value
             "faces_detected": faces_detected,
             "face_scores": [round(s, 1) for s in face_scores],
             "flags": flags,

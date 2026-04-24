@@ -16,3 +16,15 @@ data/uploads/*
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Python venv (your actual folder)
+venv/
+
+# Models (VERY IMPORTANT)
+*.pth
+models/
+
+# Images (optional but recommended)
+*.png
+*.jpg
+*.jpeg
