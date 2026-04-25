@@ -1,10 +1,27 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useState } from "react"; // ✅ ADDED
+
 import NavBar from "./components/NavBar";
 import HistoryView from "./views/HistoryView";
 import UploadView from "./views/UploadView";
 import AnalysisView from "./views/AnalysisView";
+import DisInfoGraph from "./components/DisInfoGraph"; // already present
 
 function App() {
+
+  const [graphData, setGraphData] = useState(null); // ✅ ADDED
+
+  // ✅ ADDED: function to fetch graph from backend
+  const fetchGraph = async (jobId) => {
+    try {
+      const res = await fetch(`http://localhost:8000/graph/${jobId}`);
+      const data = await res.json();
+      setGraphData(data.graph);
+    } catch (err) {
+      console.error("Graph fetch error:", err);
+    }
+  };
+
   return (
     <div
       style={{
@@ -20,13 +37,34 @@ function App() {
       }}
     >
       <NavBar />
+
       <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "24px 18px" }}>
         <Routes>
           <Route path="/" element={<UploadView />} />
-          <Route path="/analysis" element={<AnalysisView />} />
+
+          {/* ✅ UPDATED: passing props WITHOUT removing anything */}
+          <Route 
+            path="/analysis" 
+            element={
+              <AnalysisView 
+                graphData={graphData}            // ✅ ADDED
+                setGraphData={setGraphData}      // ✅ ADDED
+                fetchGraph={fetchGraph}          // ✅ ADDED
+              />
+            } 
+          />
+
           <Route path="/history" element={<HistoryView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+        {/* ✅ ADDED: render graph globally (safe, does not break anything) */}
+        {graphData && (
+          <div style={{ marginTop: "40px" }}>
+            <DisInfoGraph graphData={graphData} />
+          </div>
+        )}
+
       </main>
 
       <style>{`

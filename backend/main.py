@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
+from graph.disinfo_graph import build_disinfo_graph
 
 import aiofiles
 
@@ -248,3 +249,25 @@ def root():
         "status": "running",
         "endpoints": [route.path for route in app.routes],
     }
+
+#from graph.disinfo_graph import build_disinfo_graph
+
+@app.get("/graph/{job_id}")
+async def get_disinfo_graph(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = jobs[job_id]
+    if job["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Analysis not complete")
+    report = job["report"]
+    # Only generate graph if content is likely fake
+    if report["result"] == "REAL" and report["confidence"] < 40:
+        return {"graph": None, "message": "Content appears authentic, no spread analysis needed"}
+    media_hash = job_id  # use job_id as deterministic seed
+    graph_data = build_disinfo_graph(
+        media_hash=media_hash,
+        confidence=report["confidence"],
+        flags=report.get("flags", []),
+        country_hint=report.get("country_hint", "unknown")
+    )
+    return {"graph": graph_data}

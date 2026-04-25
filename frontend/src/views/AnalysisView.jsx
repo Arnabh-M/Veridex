@@ -53,7 +53,7 @@ function ReportPlaceholder({ reportData, activeJob, onBack }) {
   );
 }
 
-function AnalysisView() {
+function AnalysisView({ fetchGraph }) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeJob = location.state ?? null;
@@ -93,7 +93,11 @@ function AnalysisView() {
         const reportJson = await getJobReport(jobId);
         if (isAlive) {
           setReportData(reportJson);
+          if (fetchGraph) {                 // ✅ ADD THIS BLOCK
+            fetchGraph(jobId);
+          }
         }
+        
       } catch (error) {
         if (isAlive) {
           setErrorMessage(error.message || "Failed to fetch report data.");
