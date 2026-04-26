@@ -1,57 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getJobReport, getJobStatus } from "../services/api";
+import ResultsPanel from "../components/ResultsPanel";
+import ReportPanel from "../components/ReportPanel";
 
 const moduleRows = ["Neural Classifier", "GAN Detector", "Audio Sync", "Metadata Forensics"];
 
-function ReportPlaceholder({ reportData, activeJob, onBack }) {
-  return (
-    <section
-      style={{
-        border: "1px solid var(--border)",
-        backgroundColor: "var(--bg2)",
-        borderRadius: "14px",
-        padding: "20px",
-      }}
-    >
-      <h2 style={{ margin: 0, fontSize: "20px", color: "var(--green)" }}>Analysis Report</h2>
-      <p style={{ marginTop: "8px", color: "var(--text)" }}>
-        Job <strong>{activeJob?.jobId}</strong> for <strong>{activeJob?.filename}</strong> completed.
-      </p>
-      <pre
-        style={{
-          marginTop: "14px",
-          border: "1px solid var(--border)",
-          borderRadius: "12px",
-          padding: "14px",
-          maxHeight: "360px",
-          overflow: "auto",
-          backgroundColor: "var(--bg)",
-          color: "var(--text)",
-          fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
-          fontSize: "12px",
-        }}
-      >
-        {JSON.stringify(reportData, null, 2)}
-      </pre>
-      <button
-        type="button"
-        onClick={onBack}
-        style={{
-          marginTop: "16px",
-          border: "1px solid var(--border)",
-          backgroundColor: "transparent",
-          color: "var(--text)",
-          borderRadius: "10px",
-          padding: "8px 12px",
-          cursor: "pointer",
-        }}
-      >
-        Back to Upload
-      </button>
-    </section>
-  );
-}
+/* ReportPlaceholder replaced by ReportPanel + ResultsPanel */
 
 function AnalysisView({ fetchGraph }) {
   const location = useLocation();
@@ -213,7 +168,34 @@ function AnalysisView({ fetchGraph }) {
   }
 
   if (isCompleted && reportData) {
-    return <ReportPlaceholder reportData={reportData} activeJob={activeJob} onBack={() => navigate("/")} />;
+    return (
+      <section style={{ display: "grid", gap: "20px" }}>
+        {/* Score cards from the raw analysis result */}
+        <ResultsPanel reportData={reportData} />
+
+        {/* LLM threat-intel brief */}
+        <ReportPanel
+          jobId={jobId}
+          confidence={Number(reportData?.confidence ?? 0)}
+        />
+
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          style={{
+            alignSelf: "start",
+            border: "1px solid var(--border)",
+            backgroundColor: "transparent",
+            color: "var(--text)",
+            borderRadius: "10px",
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          Back to Upload
+        </button>
+      </section>
+    );
   }
 
   if (!isProcessing && !isCompleted) {
