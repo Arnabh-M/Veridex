@@ -1,3 +1,15 @@
+:root {
+  --green: #00ff88;
+  --green-dim: #00cc6a;
+  --red: #ff4466;
+  --bg: #080b10;
+  --surface: #0d1117;
+  --surface2: #131920;
+  --border: #1e2a35;
+  --text: #e8eef5;
+  --muted: #4a6070;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

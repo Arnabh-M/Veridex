@@ -6,9 +6,10 @@ import ReportPanel from "../components/ReportPanel";
 
 const moduleRows = ["Neural Classifier", "GAN Detector", "Audio Sync", "Metadata Forensics"];
 
-/* ReportPlaceholder replaced by ReportPanel + ResultsPanel */
+// B2 — module labels for cycling highlight
+const MODULES = ["Neural", "GAN", "Audio", "Metadata"];
 
-function AnalysisView({ fetchGraph }) {
+function AnalysisView({ fetchGraph, thumbnailUrl = null, graphData, setGraphData }) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeJob = location.state ?? null;
@@ -16,6 +17,10 @@ function AnalysisView({ fetchGraph }) {
   const [reportData, setReportData] = useState(activeJob?.analysis ?? null);
   const [errorMessage, setErrorMessage] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // B2 — active module state
+  const [activeModule, setActiveModule] = useState(0);
+
   const pollRef = useRef(null);
   const timerRef = useRef(null);
   const jobId = activeJob?.jobId ?? "";
@@ -24,6 +29,14 @@ function AnalysisView({ fetchGraph }) {
   const liveProgressText = statusData?.progress ?? "Initializing analysis pipeline";
   const isCompleted = currentStatus === "completed";
   const isProcessing = currentStatus === "queued" || currentStatus === "processing";
+
+  // B3 — module cycling effect
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActiveModule(prev => (prev + 1) % MODULES.length);
+    }, 1500);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!jobId) {
@@ -48,11 +61,10 @@ function AnalysisView({ fetchGraph }) {
         const reportJson = await getJobReport(jobId);
         if (isAlive) {
           setReportData(reportJson?.report ?? null);
-          if (fetchGraph) {                 // ✅ ADD THIS BLOCK
+          if (fetchGraph) {
             fetchGraph(jobId);
           }
         }
-        
       } catch (error) {
         if (isAlive) {
           setErrorMessage(error.message || "Failed to fetch report data.");
@@ -230,6 +242,7 @@ function AnalysisView({ fetchGraph }) {
     );
   }
 
+  // B1 — keyframes injection + B5 — scanning block replaces old progress bar
   return (
     <section
       style={{
@@ -239,6 +252,14 @@ function AnalysisView({ fetchGraph }) {
         padding: "20px",
       }}
     >
+      {/* B1 — scanLine keyframe */}
+      <style>{`
+        @keyframes scanLine {
+          0%   { top: 0%; }
+          100% { top: 100%; }
+        }
+      `}</style>
+
       <h1 style={{ margin: 0, fontSize: "24px", color: "var(--green)" }}>
         Analyzing: {activeJob?.filename ?? activeJob?.fileName ?? "Unknown file"}
       </h1>
@@ -253,47 +274,65 @@ function AnalysisView({ fetchGraph }) {
         {liveProgressText}
       </p>
 
-      <div
-        style={{
-          width: "100%",
-          height: "18px",
-          borderRadius: "999px",
-          overflow: "hidden",
-          border: "1px solid var(--border)",
-          background: "linear-gradient(90deg, #0a1117, #0f1722)",
-          marginBottom: "16px",
-        }}
-      >
-        <div className="veridex-scan-bar" />
-      </div>
-
-      <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
-        {moduleRows.map((moduleName) => (
-          <div
-            key={moduleName}
+      {/* B5 — scanning block */}
+      <div style={{
+        position: "relative",
+        width: "100%",
+        height: 200,
+        background: "#0e1015",
+        borderRadius: 10,
+        overflow: "hidden",
+        border: "1px solid #1c2030",
+        marginBottom: "16px",
+      }}>
+        {/* Thumbnail background */}
+        {thumbnailUrl && (
+          <img
+            src={thumbnailUrl}
+            alt="analyzing"
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              border: "1px solid var(--border)",
-              borderRadius: "10px",
-              padding: "10px 12px",
-              backgroundColor: "var(--bg)",
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: 0.35,
             }}
-          >
-            <span style={{ color: "var(--text)" }}>{moduleName}</span>
-            <span
-              className={isCompleted ? "" : "veridex-pulse-dot"}
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "50%",
-                backgroundColor: "var(--green)",
-                boxShadow: isCompleted ? "0 0 8px rgba(0,255,136,0.85)" : "0 0 0 0 rgba(0,255,136,0.7)",
-              }}
-            />
-          </div>
-        ))}
+          />
+        )}
+
+        {/* Scan line */}
+        <div style={{
+          position: "absolute",
+          left: 0,
+          width: "100%",
+          height: 2,
+          background: "#00ff88",
+          boxShadow: "0 0 8px rgba(0,255,136,0.6)",
+          animation: "scanLine 1.2s linear infinite",
+        }} />
+
+        {/* Module list */}
+        <div style={{
+          position: "absolute",
+          bottom: 12,
+          left: 16,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}>
+          {MODULES.map((mod, i) => (
+            <span key={mod} style={{
+              fontSize: "0.78rem",
+              fontWeight: i === activeModule ? 700 : 400,
+              color: i === activeModule ? "#00ff88" : "#3a4050",
+              letterSpacing: "0.08em",
+              transition: "color 0.3s ease",
+            }}>
+              {i === activeModule ? "▶ " : "  "}{mod.toUpperCase()}
+            </span>
+          ))}
+        </div>
       </div>
 
       <p

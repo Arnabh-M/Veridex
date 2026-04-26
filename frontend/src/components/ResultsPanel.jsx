@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const SCORE_CARDS = [
   { key: "neural", label: "Neural Classifier" },
@@ -65,7 +65,30 @@ function ResultsPanel({ reportData }) {
 
   const ringRadius = 50;
   const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringOffset = ringCircumference * (1 - boundedConfidence / 100);
+
+  // C3 — animated counter state
+  const [animatedValue, setAnimatedValue] = useState(0);
+
+  // C4 — count-up effect
+  useEffect(() => {
+    if (boundedConfidence == null) return;
+    const duration = 1200;
+    const startTime = performance.now();
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setAnimatedValue(Math.round(eased * boundedConfidence));
+      if (t < 1) requestAnimationFrame(step);
+    }
+
+    const raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [boundedConfidence]);
+
+  // C5 — animatedValue drives ring stroke
+  const ringOffset = ringCircumference * (1 - animatedValue / 100);
 
   const flags = Array.isArray(reportData?.flags) ? reportData.flags : [];
   const componentScores = reportData?.component_scores ?? {};
@@ -97,8 +120,43 @@ function ResultsPanel({ reportData }) {
     [componentScores, fileType]
   );
 
+  // D2 — verdict banner animation
+  const isFake = result?.toUpperCase() === "FAKE";
+  const bannerAnimation = isFake
+    ? "fakePulse 1.5s ease-in-out infinite"
+    : "realPulse 2.5s ease-in-out infinite";
+
   return (
     <section style={{ display: "grid", gap: "16px" }}>
+      {/* D1 — verdict banner keyframes */}
+      <style>{`
+        @keyframes fakePulse {
+          0%, 100% { box-shadow: 0 0 0px #ff4757; }
+          50%       { box-shadow: 0 0 24px rgba(255,71,87,0.7); }
+        }
+        @keyframes realPulse {
+          0%, 100% { box-shadow: 0 0 0px #00ff88; }
+          50%       { box-shadow: 0 0 16px rgba(0,255,136,0.4); }
+        }
+        @keyframes veridexRingFill {
+          from { stroke-dashoffset: ${ringCircumference}; }
+          to { stroke-dashoffset: var(--ring-target); }
+        }
+        @keyframes veridexBarFill {
+          from { width: 0; }
+          to { width: var(--target-width); }
+        }
+        .veridex-score-fill {
+          width: 0;
+          height: 100%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(0,255,136,0.35), rgba(0,255,136,0.95));
+          box-shadow: 0 0 10px rgba(0,255,136,0.55);
+          animation: veridexBarFill 1.2s ease-out forwards;
+        }
+      `}</style>
+
+      {/* D2 — verdict banner with animation */}
       <article
         style={{
           border: `1px solid ${verdictStyle.border}`,
@@ -110,6 +168,7 @@ function ResultsPanel({ reportData }) {
           gap: "18px",
           alignItems: "center",
           justifyContent: "space-between",
+          animation: bannerAnimation,
         }}
       >
         <div>
@@ -130,16 +189,17 @@ function ResultsPanel({ reportData }) {
               strokeWidth="10"
               strokeLinecap="round"
               fill="none"
-              strokeDasharray={ringCircumference}
-              strokeDashoffset={ringCircumference}
+              // C5 — use animatedValue for ring
+              strokeDasharray={`${(animatedValue / 100) * ringCircumference} ${ringCircumference}`}
+              strokeDashoffset={0}
               transform="rotate(-90 68 68)"
               style={{
-                animation: "veridexRingFill 1.4s ease-out forwards",
-                ["--ring-target"]: `${ringOffset}`,
                 filter: `drop-shadow(0 0 8px ${verdictStyle.ring})`,
+                transition: "stroke-dasharray 0.05s linear",
               }}
             />
           </svg>
+          {/* C6 — numeric label uses animatedValue */}
           <p
             style={{
               margin: 0,
@@ -149,12 +209,17 @@ function ResultsPanel({ reportData }) {
               fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
             }}
           >
-            {boundedConfidence.toFixed(1)}% confidence
+            {animatedValue}% confidence
           </p>
         </div>
       </article>
 
-      <article style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+      {/* F1 — score cards grid */}
+      <article style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+        gap: 12,
+      }}>
         {scoreCards.map((card) => (
           <div
             key={card.key}
@@ -262,25 +327,6 @@ function ResultsPanel({ reportData }) {
           </p>
         </div>
       </article>
-
-      <style>{`
-        @keyframes veridexRingFill {
-          from { stroke-dashoffset: ${ringCircumference}; }
-          to { stroke-dashoffset: var(--ring-target); }
-        }
-        @keyframes veridexBarFill {
-          from { width: 0; }
-          to { width: var(--target-width); }
-        }
-        .veridex-score-fill {
-          width: 0;
-          height: 100%;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(0,255,136,0.35), rgba(0,255,136,0.95));
-          box-shadow: 0 0 10px rgba(0,255,136,0.55);
-          animation: veridexBarFill 1.2s ease-out forwards;
-        }
-      `}</style>
     </section>
   );
 }
