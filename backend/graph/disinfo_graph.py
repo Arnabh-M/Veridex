@@ -10,6 +10,47 @@ from typing import Any, Dict, List
 import networkx as nx
 
 
+REGION_COUNTRIES = {
+    "East Asia (likely China)": ["China", "China", "China", "Hong Kong", "Taiwan"],
+    "East Asia (China/Philippines/Singapore)": ["China", "China", "Philippines", "Singapore", "Malaysia"],
+    "East Asia (Japan/Korea)": ["Japan", "Japan", "South Korea", "South Korea", "Taiwan"],
+    "Eastern Europe (likely Russia)": ["Russia", "Russia", "Russia", "Belarus", "Ukraine"],
+    "Eastern Europe / Middle East (Russia/Turkey)": ["Russia", "Russia", "Turkey", "Iran", "Belarus"],
+    "Middle East / North Africa": ["Iran", "Saudi Arabia", "UAE", "Egypt", "Turkey"],
+    "Middle East (likely Iran)": ["Iran", "Iran", "Iraq", "Syria", "Lebanon"],
+    "South Asia (likely India)": ["India", "India", "India", "Bangladesh", "Sri Lanka"],
+    "South Asia (likely Pakistan)": ["Pakistan", "Pakistan", "Afghanistan", "Bangladesh", "India"],
+    "South Asia (Pakistan/Kazakhstan)": ["Pakistan", "Pakistan", "Kazakhstan", "Afghanistan", "Uzbekistan"],
+    "Southeast Asia": ["Vietnam", "Thailand", "Indonesia", "Malaysia", "Philippines"],
+    "Southeast Asia (likely Thailand)": ["Thailand", "Thailand", "Myanmar", "Cambodia", "Laos"],
+    "Western Europe": ["Germany", "France", "Netherlands", "Belgium", "Austria"],
+    "Western Europe (likely France)": ["France", "France", "Belgium", "Switzerland", "Algeria"],
+    "Latin America / Spain": ["Brazil", "Mexico", "Argentina", "Colombia", "Spain"],
+    "English-speaking region (US/UK/AU)": ["United States", "United States", "United Kingdom", "Canada", "Australia"],
+    "Eastern USA / Colombia": ["United States", "United States", "Canada", "Colombia", "Mexico"],
+    "Western USA": ["United States", "United States", "Canada", "Mexico", "United Kingdom"],
+    "South America (Brazil/Argentina)": ["Brazil", "Brazil", "Argentina", "Chile", "Colombia"],
+    "UK / West Africa": ["United Kingdom", "Nigeria", "Ghana", "Senegal", "United Kingdom"],
+    "Western Europe / West Africa": ["France", "Nigeria", "Germany", "Cameroon", "Netherlands"],
+    "Eastern Europe / Eastern Africa": ["Russia", "Ethiopia", "Ukraine", "Kenya", "Belarus"],
+    "Central Asia / Turkey": ["Turkey", "Turkey", "Kazakhstan", "Uzbekistan", "Azerbaijan"],
+    "Unknown": ["Unknown", "Unknown", "Unknown", "Unknown", "Unknown"],
+}
+
+REGION_COLOR_MAP = {
+    "East Asia": "#ff6b6b",
+    "Eastern Europe": "#ff9f43",
+    "Middle East": "#ffd32a",
+    "South Asia": "#0be881",
+    "Southeast Asia": "#00d8d6",
+    "Western Europe": "#4d9fff",
+    "Latin America": "#b388ff",
+    "English-speaking": "#ff6b9d",
+    "South America": "#b388ff",
+    "Unknown": "#7a8499",
+}
+
+
 def _rand_handle() -> str:
     adjectives = [
         "daily",
@@ -42,11 +83,28 @@ def _rand_handle() -> str:
     return f"{random.choice(adjectives)}_{random.choice(nouns)}{random.randint(1, 9999)}"
 
 
+def _get_region_color(country: str, region_countries: dict) -> str:
+    """Map a country back to its region color."""
+    for region, countries in region_countries.items():
+        if country in countries:
+            for key in REGION_COLOR_MAP:
+                if key.lower() in region.lower():
+                    return REGION_COLOR_MAP[key]
+    return REGION_COLOR_MAP["Unknown"]
+
+
+def _pick_country(region: str, index: int, rng) -> str:
+    """Pick a country from the region list using seeded random."""
+    countries = REGION_COUNTRIES.get(region, REGION_COUNTRIES["Unknown"])
+    return rng.choice(countries)
+
+
 def build_disinfo_graph(
     media_hash: str,
     confidence: float,
     flags: List[str],
     country_hint: str = "unknown",
+    origin_region: str = "Unknown",
 ) -> Dict[str, Any]:
     """
     Build a simulated disinformation propagation graph for demo/UX purposes.
@@ -77,11 +135,17 @@ def build_disinfo_graph(
 
     # 3. Origin node
     origin_id = "origin_0"
+    origin_countries = REGION_COUNTRIES.get(origin_region, REGION_COUNTRIES["Unknown"])
+    origin_country = origin_countries[0]  # take the most likely country
+    if country_hint and country_hint != "unknown":
+        origin_country = country_hint  # explicit hint overrides region
+    region_color = _get_region_color(origin_country, REGION_COUNTRIES)
     origin = {
         "id": origin_id,
         "label": f"@{_rand_handle()}",
         "bot_score": round(random.uniform(0.6, 0.95), 2),
-        "country": country_hint,
+        "country": origin_country,
+        "region_color": region_color,
         "account_age_days": random.randint(3, 180),
         "follower_count": random.randint(50, 500),
         "type": "origin",
@@ -102,11 +166,13 @@ def build_disinfo_graph(
         amp_score = random.uniform(0.45, 0.8) + (0.25 * conf_norm)
         amp_score = max(0.0, min(0.99, amp_score))
 
+        node_country = _pick_country(origin_region, i, random)
         amp = {
             "id": amp_id,
             "label": f"@{_rand_handle()}",
             "bot_score": round(amp_score, 2),
-            "country": country_hint if random.random() < 0.6 else "unknown",
+            "country": node_country,
+            "region_color": _get_region_color(node_country, REGION_COUNTRIES),
             "account_age_days": random.randint(1, 365),
             "follower_count": random.randint(120, 2500),
             "type": "amplifier",
@@ -126,11 +192,13 @@ def build_disinfo_graph(
     propagator_ids: List[str] = []
     for i in range(n_propagators):
         prop_id = f"prop_{i}"
+        node_country = _pick_country(origin_region, i, random)
         prop = {
             "id": prop_id,
             "label": f"@{_rand_handle()}",
             "bot_score": round(random.uniform(0.2, 0.85), 2),
-            "country": country_hint if random.random() < 0.35 else "unknown",
+            "country": node_country,
+            "region_color": _get_region_color(node_country, REGION_COUNTRIES),
             "account_age_days": random.randint(1, 1500),
             "follower_count": random.randint(20, 1200),
             "type": "propagator",
@@ -160,6 +228,7 @@ def build_disinfo_graph(
                 "label": data.get("label", node_id),
                 "bot_score": float(data.get("bot_score", 0.0)),
                 "country": data.get("country", "unknown"),
+                "region_color": data.get("region_color"),
                 "type": data.get("type", "unknown"),
                 "follower_count": int(data.get("follower_count", 0)),
             }
@@ -182,6 +251,12 @@ def build_disinfo_graph(
     # Reach estimate (sum follower_counts)
     reach_estimate = sum(int(d.get("follower_count", 0)) for _, d in G.nodes(data=True))
 
+    # Count countries across all nodes
+    country_distribution: Dict[str, int] = {}
+    for node in nodes_data:
+        c = node.get("country", "Unknown") or "Unknown"
+        country_distribution[c] = country_distribution.get(c, 0) + 1
+
     # 9. Return dict
     return {
         "nodes": nodes_data,
@@ -192,7 +267,9 @@ def build_disinfo_graph(
             "bot_account_count": int(bot_count),
             "reach_estimate": int(reach_estimate),
             "peak_spread_minutes": int(random.randint(8, 45)),
-            "origin_country": country_hint,
+            "origin_country": origin_country,
+            "country_distribution": country_distribution,
+            "origin_region": origin_region,
         },
         "graph_summary": (
             f"Content detected as {round(confidence)}% likely synthetic. "

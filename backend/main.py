@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 from graph.disinfo_graph import build_disinfo_graph
 from report.report_generator import generate_report
 from report.html_template import render_report_html
+from intel.attribution import attribute_source
 
 import aiofiles
 
@@ -115,6 +116,7 @@ async def run_full_analysis(job_id: str, file_path: str, file_ext: str):
         jobs[job_id]["status"] = "completed"
         jobs[job_id]["report"] = result
         jobs[job_id]["threat_report"] = generate_report(result)   
+        jobs[job_id]["attribution"] = attribute_source(result)
         jobs[job_id]["completed_at"] = time.time()
         jobs[job_id].pop("progress", None)
     except Exception as e:
@@ -254,8 +256,9 @@ def get_report(job_id: str):
             content={"message": "Report unavailable despite completion.", "status": job["status"]}
         )
     return {
-    "report": job["report"],
-    "threat_report": job.get("threat_report")
+        "report": job["report"],
+        "threat_report": job.get("threat_report"),
+        "attribution": job.get("attribution"),
     }
 
 
@@ -296,10 +299,15 @@ async def get_disinfo_graph(job_id: str):
     if report["result"] == "REAL" and report["confidence"] < 40:
         return {"graph": None, "message": "Content appears authentic, no spread analysis needed"}
     media_hash = job_id  # use job_id as deterministic seed
+
+    attribution = job.get("attribution", {}) or {}
+    origin_region = attribution.get("origin_region", "Unknown")
+
     graph_data = build_disinfo_graph(
         media_hash=media_hash,
         confidence=report["confidence"],
         flags=report.get("flags", []),
-        country_hint=report.get("country_hint", "unknown")
+        country_hint=report.get("country_hint", "unknown"),
+        origin_region=origin_region
     )
     return {"graph": graph_data}

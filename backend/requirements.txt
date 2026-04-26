@@ -50,3 +50,4 @@ python-magic==0.4.27
 
 # MediaPipe (face landmarks for lip-sync detection)
 mediapipe==0.10.11
+langdetect

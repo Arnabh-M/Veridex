@@ -99,9 +99,13 @@ export default function DisInfoGraph({ graphData }) {
         .style("maxWidth", "240px");
 
       function nodeColor(d) {
+        const baseColor = d.region_color || "#4d9fff";
+        const botIntensity = d.bot_score || 0;
+        // High bot score → shift toward red regardless of region
         if (d.type === "origin") return "#ff4757";
-        if ((d.bot_score ?? 0) > 0.65) return "#ffb347";
-        return "#4d9fff";
+        if (botIntensity > 0.8) return "#ff4757";
+        if (botIntensity > 0.6) return "#ff9f43";
+        return baseColor; // use region color for lower bot scores
       }
 
       function nodeRadius(d) {
@@ -168,10 +172,10 @@ export default function DisInfoGraph({ graphData }) {
           tooltip.html(
             `<div style="font-weight:600; margin-bottom:6px;">${d.label || d.id}</div>
              <div><span style="opacity:0.75;">id:</span> ${d.id}</div>
-             <div><span style="opacity:0.75;">bot_score:</span> ${Number(d.bot_score ?? 0).toFixed(
-               2
-             )}</div>
-             <div><span style="opacity:0.75;">country:</span> ${d.country ?? "unknown"}</div>
+             <div><span style="opacity:0.75;">Country:</span> ${d.country ?? "Unknown"}</div>
+             <div><span style="opacity:0.75;">Bot Score:</span> ${(
+               (Number(d.bot_score ?? 0) || 0) * 100
+             ).toFixed(0)}%</div>
              <div><span style="opacity:0.75;">followers:</span> ${d.follower_count ?? 0}</div>`
           );
         })
