@@ -60,3 +60,24 @@ backend/models/
 *.egg-info/
 dist/
 build/
+
+# Veridex generated pipeline artifacts
+backend/dataset/
+backend/dataset_combined/
+backend/videos/
+
+# Generated reports (keep source code files in backend/report)
+backend/report/*.csv
+backend/report/*.json
+backend/report/*.png
+backend/report/*.html
+
+# Large model binaries
+backend/models/*.h5
+backend/models/*.pth
+backend/models/*.pt
+backend/models/*.pkl
+
+# Local test assets
+backend/test_fake.png
+backend/test_real.png
